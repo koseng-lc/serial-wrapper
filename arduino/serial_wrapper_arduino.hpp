@@ -1,3 +1,7 @@
+/**
+*    @author : koseng (Lintang)
+*    @brief : Serial wrapper
+*/
 #pragma once
 
 #include <Arduino.h>
