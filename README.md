@@ -10,7 +10,7 @@ This project is part of my capstone project that is called MICRON.
 
 #include <serial_wrapper/serial_wrapper.hpp>
 
-micron::SerialWrapper<> sw("/dev/ttyUSB0", micron::baud_rate_t(9600));
+micron::SerialWrapper<> sw("/dev/ttyUSB0", micron::baud_rate_t(115200));
 
 void sigHandler(int sig){
     (void)sig;
