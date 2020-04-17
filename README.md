@@ -1,7 +1,10 @@
 # Serial Wrapper
 Simple serial communcation interface between Arduino and PC, this actually wrapper for Boost.ASIO.
-The features isn't complete yet, at this point Arduino only possible to transmit and PC vice versa, i will complement the features in future if possible.
 This project is part of my capstone project that is called MICRON.
+
+## Features
+* Support two-way communication
+
 ## Example
 ### PC side
 ```cpp
