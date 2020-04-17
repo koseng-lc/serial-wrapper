@@ -18,15 +18,14 @@ void sigHandler(int sig){
 }
 
 int main(int argc, char** argv){
-    constexpr std::size_t BULK_SIZE(10);
+    std::string data( "Test from PC" );
+    std::string received_data;
     while(sw.isRunning()){
-        std::vector<double> bulk_data;
-        sw.getBulkData(&bulk_data, BULK_SIZE);
+        
+        sw.sendData(data);
 
-        std::cout << "Received data : ";
-        for(const auto& d:bulk_data)
-            std::cout << d << "  ";
-        std::cout << std::endl;
+        received_data = sw.getData();
+        std::cout << "Received data : " << received_data << std::endl;
 
         boost::this_thread::sleep_for(boost::chrono::milliseconds{100});
     }
@@ -36,22 +35,28 @@ int main(int argc, char** argv){
 ```
 ### Arduino side
 ```cpp
+#include <ArduinoJson.h>
 #include "serial_wrapper_arduino.hpp"
+#include "circular_buffer.hpp"
 
 micron::SerialWrapper* sw;
 
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(115200);
   sw = new micron::SerialWrapper(&Serial);
 }
-static const size_t BULK_SIZE(10);
-void loop() {
-  double bulk_data[BULK_SIZE];
-  for(int i(0); i < BULK_SIZE; i++){
-    bulk_data[i] = (rand()%100)* 0.1;
-  }
-  sw->sendBulkData(bulk_data, BULK_SIZE);  
+
+void loop() {      
+  String received_data = sw->getData();
+  //-- do something here with the data
+  
+  String data = "Test from Arduino";
+  sw->sendData(data);      
   delay(100);
+}
+
+void serialEvent(){
+  sw->receiveRoutine();
 }
 ```
 ## Installation
