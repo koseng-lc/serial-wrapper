@@ -5,6 +5,7 @@
 #pragma once
 
 #include <Arduino.h>
+#include "circular_buffer.hpp"
 
 namespace micron{
 
@@ -15,16 +16,19 @@ public:
 
   inline void transmit(unsigned char _data);
   template <typename Type>
-  void transmitPacket(Type _data);
-  template <typename Type>
-  void sendBulkData(Type* _bulk_data, size_t _bulk_size);
+  inline void sendData(Type _data);
+  inline String getData();
+  void receiveRoutine();
   
 private:
+  CircularBuffer<String> rpacket_buffer_;
+  
   Stream* stream_;
 };
 
-SerialWrapper::SerialWrapper(Stream* _stream){
-  stream_ = _stream;
+SerialWrapper::SerialWrapper(Stream* _stream)
+  : rpacket_buffer_(10)
+  , stream_(_stream){
 }
 
 SerialWrapper::~SerialWrapper(){
@@ -36,7 +40,7 @@ void SerialWrapper::transmit(unsigned char _data){
 }
 
 template <typename Type>
-void SerialWrapper::transmitPacket(Type _data){
+void SerialWrapper::sendData(Type _data){
   String str_data(_data);
   for(size_t i(0); i < str_data.length(); i++){
     transmit( str_data.charAt(i) );
@@ -44,11 +48,19 @@ void SerialWrapper::transmitPacket(Type _data){
   transmit('\n');
 }
 
-template <typename Type>
-void SerialWrapper::sendBulkData(Type* _bulk_data, size_t _bulk_size){
-  for(size_t i(0); i < _bulk_size; i++){
-    transmitPacket(_bulk_data[i]);
+String SerialWrapper::getData(){
+  return rpacket_buffer_.at(0);
+}
+
+void SerialWrapper::receiveRoutine(){
+  String packet;
+  while(stream_->available()){
+    char c = stream_->read();
+    if(c == '\n')
+      break;      
+    packet += c;           
   }
+  rpacket_buffer_.push(packet);
 }
 
 }
