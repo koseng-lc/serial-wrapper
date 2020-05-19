@@ -37,7 +37,16 @@ public:
     SerialWrapper(std::string _dev_name, BaudRate _baud_rate);
     ~SerialWrapper(){ stop(); }
 
-    inline auto stop() -> void{is_running_ = false;}
+    inline void stop(){
+        is_running_ = false;
+        io_.post(boost::bind(&SerialWrapper::stopHandler, this));
+        receive_thread_.join();
+    }
+    inline void stopHandler(){
+        boost::system::error_code e;
+        port_.cancel(e);
+        port_.close(e);
+    }
     inline auto isRunning() const -> bool{return is_running_;}    
 
     auto getData() -> std::string;
@@ -50,11 +59,12 @@ private:
     auto transmitCompletion(const boost::system::error_code& _e);
 
 private:
-    static constexpr std::size_t READ_BUFFER_SIZE{50};
+    static constexpr std::size_t READ_BUFFER_SIZE{100};
     uchar_t buffer_[READ_BUFFER_SIZE];
     boost::circular_buffer<std::string> rpacket_buffer_;
     boost::circular_buffer<std::string> tpacket_buffer_;
     std::atomic<bool> is_running_;
+    boost::mutex mtx_;
 
     boost::thread receive_thread_;
 
@@ -144,22 +154,26 @@ auto SerialWrapper<BaudRate,
          Parity,
          CharSize,
         FlowControl>::receiveCompletion(const boost::system::error_code& _e, std::size_t _len){
-    if(_e){
+            // 
+    if(_e && _e != boost::asio::error::eof){
         //-- do something here, to handle the error
-    }else{
+        std::cerr << "[Serial Wrapper] " << _e.message() << std::endl;
+    }else{        
         static std::string packet;
-        for(int i(0);i < READ_BUFFER_SIZE; i++){
+        for(std::size_t i(0);i < _len; i++){
             if(buffer_[i] == '\n'){
                 rpacket_buffer_.push_back(packet);
-                packet.clear();
+                packet.clear();                
             }else{
                 packet += buffer_[i];
             }
         }
-//        for(const auto& p:rpacket_buffer_)
-//            std::cout << p << std::endl;
-        receive();
-    }
+        if(is_running_)
+            receive();
+        // for(const auto& p:rpacket_buffer_)
+        //    std::cout << p << std::endl;
+        
+    }    
 }
 
 template <typename BaudRate,
@@ -172,12 +186,12 @@ auto SerialWrapper<BaudRate,
                    Parity,
                    CharSize,
                    FlowControl>::transmit() -> void{
+    // boost::mutex::scoped_lock lk(mtx_);
     MICRON_ASIO_EXCEPTIONAL_HANDLER(
         boost::asio::async_write(port_, boost::asio::buffer(tpacket_buffer_.front(),tpacket_buffer_.front().size()),
                                  boost::bind(&SerialWrapper::transmitCompletion,
                                              this,
-                                             boost::asio::placeholders::error));
-        tpacket_buffer_.pop_front();
+                                             boost::asio::placeholders::error));        
     )
 }
 
@@ -194,8 +208,10 @@ auto SerialWrapper<BaudRate,
     if(_e){
         //-- do something here, to handle the error
     }else{
+        // boost::mutex::scoped_lock lk(mtx_);
         if(tpacket_buffer_.size()){
             transmit();
+            tpacket_buffer_.pop_front();          
         }
     }
 }
@@ -227,8 +243,9 @@ auto SerialWrapper<BaudRate,
                    Parity,
                    CharSize,
                    FlowControl>::sendData(std::string _data) -> void{
+    // boost::mutex::scoped_lock lk(mtx_);
     tpacket_buffer_.push_back(_data+"\n");
-    io_.post(boost::bind(&SerialWrapper::transmit, this));
+    io_.post(boost::bind(&SerialWrapper::transmit, this));    
 }
 
 } // namespace micron

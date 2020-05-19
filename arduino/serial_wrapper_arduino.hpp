@@ -46,6 +46,7 @@ void SerialWrapper::sendData(Type _data){
     transmit( str_data.charAt(i) );
   }
   transmit('\n');
+  stream_->flush();
 }
 
 String SerialWrapper::getData(){
@@ -53,14 +54,17 @@ String SerialWrapper::getData(){
 }
 
 void SerialWrapper::receiveRoutine(){
-  String packet;
+  static String packet;
   while(stream_->available()){
     char c = stream_->read();
-    if(c == '\n')
-      break;      
-    packet += c;           
+    if(c == '\n'){
+      rpacket_buffer_.push(packet);
+      packet = "";
+    }else{
+      packet += c;
+    }    
   }
-  rpacket_buffer_.push(packet);
+  delay(1);
 }
 
 }
